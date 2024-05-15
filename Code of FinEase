@@ -1,0 +1,276 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'FinEase',
+      theme: ThemeData(
+        primaryColor: const Color(0xFF6200EE), // Deep Purple
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF6200EE), // Deep Purple
+          secondary: Color(0xFF03DAC6), // Turquoise
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF5F5F5), // Light Grey
+        fontFamily: 'Montserrat', // Change default font family
+      ),
+      home: const MyHomePage(),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({Key? key}) : super(key: key);
+
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  final List<Map<String, dynamic>> _expenses = [];
+  final TextEditingController _categoryController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _budgetController = TextEditingController();
+
+  double _totalExpenses = 0;
+  double _dailyBudget = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _budgetController.addListener(() {
+      final enteredBudget = double.tryParse(_budgetController.text) ?? 0.0;
+      setState(() {
+        _dailyBudget = enteredBudget;
+      });
+    });
+  }
+
+  void _addExpense() {
+    if (_dailyBudget <= 0) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Daily Budget Not Set'),
+            content: const Text(
+                'Please set your daily budget before adding expenses.'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    if (_categoryController.text.isEmpty ||
+        _amountController.text.isEmpty ||
+        _descriptionController.text.isEmpty) {
+      return;
+    }
+    final category = _categoryController.text;
+    final amount = double.tryParse(_amountController.text) ?? 0.0;
+    final description = _descriptionController.text;
+    final date = DateTime.now().toString().substring(0, 10);
+    setState(() {
+      _expenses.add({
+        'category': category,
+        'amount': amount,
+        'description': description,
+        'date': date
+      });
+      _totalExpenses += amount;
+      _categoryController.clear();
+      _amountController.clear();
+      _descriptionController.clear();
+    });
+  }
+
+  void _deleteExpense(int index) {
+    final deletedAmount = _expenses[index]['amount'] as double;
+    setState(() {
+      _expenses.removeAt(index);
+      _totalExpenses -= deletedAmount;
+    });
+  }
+
+  void _resetExpenses() {
+    setState(() {
+      _expenses.clear();
+      _totalExpenses = 0;
+    });
+  }
+
+  void _editExpense(int index) {
+    final Map<String, dynamic> editedExpense = _expenses[index];
+    _categoryController.text = editedExpense['category'];
+    _amountController.text = editedExpense['amount'].toString();
+    _descriptionController.text = editedExpense['description'];
+    _deleteExpense(index);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'FinEase',
+          style: TextStyle(fontSize: 24),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            _buildTextField('Daily Budget', _budgetController,
+                keyboardType: TextInputType.number),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField('Category', _categoryController),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: _buildTextField('Amount', _amountController,
+                      keyboardType: TextInputType.number),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _buildTextField('Description', _descriptionController),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildButton('Add Expense', _addExpense),
+                _buildButton('Reset Expenses', _resetExpenses),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _expenses.length,
+                itemBuilder: (context, index) {
+                  final expense = _expenses[index];
+                  return Dismissible(
+                    key: Key(expense['date']),
+                    onDismissed: (direction) => _deleteExpense(index),
+                    background: Container(
+                      color: Colors.red,
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20.0),
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    child: Card(
+                      margin: const EdgeInsets.symmetric(vertical: 8.0),
+                      color: Colors.white,
+                      elevation: 2,
+                      child: ListTile(
+                        title: Text(
+                          '${expense['category']} - ₱${expense['amount']}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Description: ${expense['description']}\nDate: ${expense['date']}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black54,
+                          ),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.edit),
+                          onPressed: () => _editExpense(index),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Expenses: ₱${_totalExpenses.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Remaining Budget: ₱${(_dailyBudget - _totalExpenses).toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController controller,
+      {TextInputType keyboardType = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 18),
+        focusedBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.deepPurple),
+        ),
+        enabledBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.grey),
+        ),
+      ),
+      keyboardType: keyboardType,
+    );
+  }
+
+  Widget _buildButton(String label, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 16, color: Colors.white),
+      ),
+      style: ButtonStyle(
+        backgroundColor: MaterialStateProperty.all<Color>(Colors.deepPurple),
+        padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+            const EdgeInsets.symmetric(vertical: 16, horizontal: 24)),
+        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+            RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        )),
+      ),
+    );
+  }
+}
